@@ -6,9 +6,9 @@ from matplotlib.ticker import FuncFormatter
 def format_rupees_lakhs(x, _):
     return f"₹{x / 1e5:.1f}L" if x >= 1e5 else f"₹{x:.0f}"
 
-def plot_costs_without_banking(df: pd.DataFrame, plant_name: str) -> plt.Figure:
+def plot_costs_with_banking(df: pd.DataFrame, plant_name: str) -> plt.Figure:
     """
-    Plot Grid Cost vs Actual Cost (without banking logic), formatted in Lakhs.
+    Plot Grid Cost vs Actual Cost with Banking and Savings, formatted in Lakhs.
     """
     df = df.copy()
     df['month'] = pd.to_datetime(df['Date'] + '-01')
@@ -18,20 +18,24 @@ def plot_costs_without_banking(df: pd.DataFrame, plant_name: str) -> plt.Figure:
 
     fig, ax = plt.subplots(figsize=(10, 6))
 
+    # Main Lines
     ax.plot(x, df['Grid Cost (₹)'], label='Grid Cost', marker='o', linewidth=2.5, color='#1E88E5')
-    ax.plot(x, df['Actual Cost (₹)'], label='Actual Cost', marker='s', linestyle='--', linewidth=2.5, color='#E53935')
+    ax.plot(x, df['Actual Cost (₹)'], label='Actual Cost', marker='s', linestyle='--', linewidth=2.5, color='#43A047')
+    ax.plot(x, df['Savings (₹)'], label='Savings', marker='^', linestyle=':', linewidth=2.5, color='#E53935')  # New savings line
 
+    # Annotation for Savings
     for i, val in enumerate(df['Savings (₹)']):
-        ax.text(
-            x[i],
-            max(df['Grid Cost (₹)'].iloc[i], df['Actual Cost (₹)'].iloc[i]) * 1.02,
-            f"₹{val / 1e5:.2f}L",  # Format in Lakhs
-            ha='center',
-            fontsize=9,
-            color='gray'
-        )
+        if not pd.isna(val) and val > 0:
+            ax.text(
+                x[i],
+                max(df['Grid Cost (₹)'].iloc[i], df['Actual Cost (₹)'].iloc[i]) * 1.02,
+                f"₹{val / 1e5:.2f}L",
+                ha='center',
+                fontsize=9,
+                color='gray'
+            )
 
-    ax.set_title(f"Monthly Cost without Banking\n{plant_name}", fontsize=14)
+    ax.set_title(f"Monthly Cost with Banking\n{plant_name}", fontsize=14)
     ax.set_xlabel("Month")
     ax.set_ylabel("Cost (₹ in Lakhs)")
     ax.set_xticks(x)
@@ -46,10 +50,9 @@ def plot_costs_without_banking(df: pd.DataFrame, plant_name: str) -> plt.Figure:
 
 
 
-
-def plot_costs_with_banking(df: pd.DataFrame, plant_name: str) -> plt.Figure:
+def plot_costs_without_banking(df: pd.DataFrame, plant_name: str) -> plt.Figure:
     """
-    Plot Grid Cost vs Actual Cost (with banking logic), formatted in Lakhs.
+    Plot Grid Cost vs Actual Cost (without banking logic), now includes Savings line.
     """
     df = df.copy()
     df['month'] = pd.to_datetime(df['Date'] + '-01')
@@ -59,20 +62,24 @@ def plot_costs_with_banking(df: pd.DataFrame, plant_name: str) -> plt.Figure:
 
     fig, ax = plt.subplots(figsize=(10, 6))
 
+    # Core lines
     ax.plot(x, df['Grid Cost (₹)'], label='Grid Cost', marker='o', linewidth=2.5, color='#1E88E5')
-    ax.plot(x, df['Actual Cost (₹)'], label='Actual Cost', marker='s', linestyle='--', linewidth=2.5, color='#43A047')
+    ax.plot(x, df['Actual Cost (₹)'], label='Actual Cost', marker='s', linestyle='--', linewidth=2.5, color='#E53935')
+    ax.plot(x, df['Savings (₹)'], label='Savings', marker='^', linestyle=':', linewidth=2.5, color='#43A047')  # New line
 
+    # Annotate savings
     for i, val in enumerate(df['Savings (₹)']):
-        ax.text(
-            x[i],
-            max(df['Grid Cost (₹)'].iloc[i], df['Actual Cost (₹)'].iloc[i]) * 1.02,
-            f"₹{val / 1e5:.2f}L",   # Display in Lakhs
-            ha='center',
-            fontsize=9,
-            color='gray'
-        )
+        if not pd.isna(val) and val > 0:
+            ax.text(
+                x[i],
+                max(df['Grid Cost (₹)'].iloc[i], df['Actual Cost (₹)'].iloc[i]) * 1.02,
+                f"₹{val / 1e5:.2f}L",
+                ha='center',
+                fontsize=9,
+                color='gray'
+            )
 
-    ax.set_title(f"Monthly Cost with Banking\n{plant_name}", fontsize=14)
+    ax.set_title(f"Monthly Cost without Banking\n{plant_name}", fontsize=14)
     ax.set_xlabel("Month")
     ax.set_ylabel("Cost (₹ in Lakhs)")
     ax.set_xticks(x)

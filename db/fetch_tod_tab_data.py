@@ -198,7 +198,8 @@ def fetch_combined_monthly_data(
     consumption_query = """
         SELECT
             date,
-            consumption
+            consumption,
+            allocated_generation AS generation
         FROM
             settlement_data
         WHERE
@@ -214,7 +215,8 @@ def fetch_combined_monthly_data(
             date AS month,
             SUM(matched_settled_sum) AS total_matched_settled_sum,
             SUM(intra_settlement) AS total_intra_settlement,
-            SUM(inter_settlement) AS total_inter_settlement
+            SUM(inter_settlement) AS total_inter_settlement,
+            SUM(surplus_demand_sum) AS surplus_demand_sum
         FROM
             banking_settlement
         WHERE
@@ -246,11 +248,22 @@ def fetch_combined_monthly_data(
             
         df_consumption['date'] = pd.to_datetime(df_consumption['date'])
         df_consumption['month'] = df_consumption['date'].dt.to_period('M').astype(str)
+        # df_consumption_monthly = (
+        #     df_consumption.groupby('month', as_index=False)['consumption']
+        #     .sum()
+        #     .rename(columns={'consumption': 'total_consumption_sum'})
+        # )
+
         df_consumption_monthly = (
-            df_consumption.groupby('month', as_index=False)['consumption']
+            df_consumption
+            .groupby('month', as_index=False)[['consumption', 'generation']]
             .sum()
-            .rename(columns={'consumption': 'total_consumption_sum'})
+            .rename(columns={
+                'consumption': 'total_consumption_sum',
+                'generation': 'total_generation_sum'
+            })
         )
+
 
         # Read banking settlement data (already monthly) using safe database utility
         df_settlement = safe_read_sql(settlement_query, conn, params)
@@ -278,3 +291,92 @@ def fetch_combined_monthly_data(
     except Exception as e:
         print(f"Error in fetch_combined_monthly_data: {e}")
         return pd.DataFrame()
+
+
+
+
+def fetch_monthly_banking_calculations(
+    conn,
+    plant_name: str = None
+) -> pd.DataFrame:
+    """
+    Fetch monthly aggregated data for consumption, banking settlement, and surplus demand.
+
+    Args:
+        conn: MySQL connection object
+        plant_name (str, optional): Filter by plant name
+
+    Returns:
+        pd.DataFrame: DataFrame with month-wise merged metrics including surplus_demand_after_banking
+    """
+
+    # --- Fetch Daily Consumption ---
+    consumption_query = """
+        SELECT
+            date,
+            consumption
+        FROM
+            settlement_data
+        WHERE
+            date IS NOT NULL
+            {plant_filter}
+        ORDER BY
+            date;
+    """
+
+    # --- Fetch Monthly Banking Settlement (with surplus_demand_sum) ---
+    settlement_query = """
+        SELECT
+            date AS month,
+            SUM(matched_settled_sum) AS matched_settled_sum,
+            SUM(intra_settlement) AS intra_settlement,
+            SUM(inter_settlement) AS inter_settlement,
+            SUM(surplus_demand_sum) AS surplus_demand_sum
+        FROM
+            banking_settlement
+        WHERE
+            date IS NOT NULL
+            {plant_filter}
+        GROUP BY
+            date
+        ORDER BY
+            date;
+    """
+
+    # Prepare queries and parameters
+    params = ()
+    if plant_name:
+        filter_clause = "AND client_name = %s"
+        params = (plant_name,)
+    else:
+        filter_clause = ""
+
+    consumption_query = consumption_query.format(plant_filter=filter_clause)
+    settlement_query = settlement_query.format(plant_filter=filter_clause)
+
+    # --- Fetch and process consumption ---
+    df_consumption = pd.read_sql(consumption_query, con=conn, params=params)
+    df_consumption['date'] = pd.to_datetime(df_consumption['date'])
+    df_consumption['month'] = df_consumption['date'].dt.to_period('M').astype(str)
+    df_consumption_monthly = (
+        df_consumption.groupby('month', as_index=False)['consumption']
+        .sum()
+        .rename(columns={'consumption': 'total_consumption_sum'})
+    )
+
+    # --- Fetch and process settlement data ---
+    df_settlement = pd.read_sql(settlement_query, con=conn, params=params)
+    df_settlement['month'] = pd.to_datetime(df_settlement['month']).dt.to_period('M').astype(str)
+
+    # --- Merge and calculate surplus_demand_after_banking ---
+    df_combined = pd.merge(df_consumption_monthly, df_settlement, on='month', how='outer')
+    df_combined = df_combined.sort_values('month').reset_index(drop=True)
+
+    df_combined['surplus_demand_after_banking'] = (
+    df_combined['surplus_demand_sum'].fillna(0)
+    - df_combined['matched_settled_sum'].fillna(0)
+    - df_combined['intra_settlement'].fillna(0)
+    - df_combined['inter_settlement'].fillna(0)
+    ).clip(lower=0)
+
+    return df_combined

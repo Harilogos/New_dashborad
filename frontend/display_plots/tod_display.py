@@ -46,16 +46,90 @@ def display_monthly_banking_settlement(selected_plant):
             st.warning("Failed to generate banking settlement chart.")
 
         if not summary_df.empty:
+            # Calculate additional metrics for banking settlement
+            summary_df = df.copy()
+            
+            
+            # Calculate derived metrics
+            summary_df['settlement_with_banking'] = summary_df['total_intra_settlement'] + summary_df['total_inter_settlement']
+            summary_df['total_settlement'] = summary_df['settlement_with_banking'] + summary_df['total_matched_settled_sum']
+            
+            # Calculate surplus demand after banking
+            summary_df['surplus_demand_after_banking'] = (
+                summary_df['surplus_demand_sum'].fillna(0)
+                - summary_df['total_matched_settled_sum'].fillna(0)
+                - summary_df['total_intra_settlement'].fillna(0)
+                - summary_df['total_inter_settlement'].fillna(0)
+            ).clip(lower=0)
+            
+            # Calculate totals for metric boxes
+            total_generation_mwh = summary_df['total_generation_sum'].sum() / 1000 if 'total_generation_sum' in summary_df.columns else 0
+            loss_percentage = 2.8  
+            total_generation_after_loss_mwh = total_generation_mwh * (1 - loss_percentage/100)
+            total_consumption_mwh = summary_df['total_consumption_sum'].sum() / 1000 if 'total_consumption_sum' in summary_df.columns else 0
+            total_settlement_mwh = summary_df['total_settlement'].sum() / 1000
+            total_surplus_demand_after_banking_mwh = summary_df['surplus_demand_after_banking'].sum() / 1000
+            
+            # Calculate replacement percentage with banking
+            replacement_percentage_with_banking = (
+                (total_settlement_mwh / total_consumption_mwh) * 100 
+                if total_consumption_mwh > 0 else 0
+            )
+            
+            # Add CSS to style metric containers
+            st.markdown("""
+            <style>
+            [data-testid="metric-container"] [data-testid="metric-container-label"] {
+                font-size: 0.9em;
+                font-weight: bold;
+            }
+            [data-testid="metric-container"] [data-testid="metric-container-value"] {
+                font-size: 0.7em;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+            
+            # Create 5 horizontal boxes with main metrics using Streamlit columns
+            col1, col2, col3, col4, col5 = st.columns(5)
+            with col1:
+                st.metric(
+                    label="Total Generation",
+                    value=f"{total_generation_mwh:.0f} MWh"
+                )
+            with col2:
+                st.metric(
+                    label="Generation (after loss)",
+                    value=f"{total_generation_after_loss_mwh:.0f} MWh",
+                    help=f"Generation after {loss_percentage}% transmission/distribution loss"
+                )
+            with col3:
+                st.metric(
+                    label="Total Consumption",
+                    value=f"{total_consumption_mwh:.0f} MWh"
+                )
+            with col4:
+                st.metric(
+                    label="Replacement (with Banking) %",
+                    value=f"{replacement_percentage_with_banking:.0f}%",
+                    help="Percentage of consumption met by generation including banking settlement"
+                )
+            with col5:
+                st.metric(
+                    label="Surplus Demand (after Banking)",
+                    value=f"{total_surplus_demand_after_banking_mwh:.0f} MWh",
+                    help="Remaining demand after considering all banking settlements"
+                )
+            
             # Customize the summary dataframe for display
             display_df = summary_df.copy()
             
             # Select and rename columns for display
             columns_to_display = {
-                'month_str': 'Month',
-                'settlement_without_banking': 'Settlement (Without Banking)',
+                'month': 'Month',
+                'total_matched_settled_sum': 'Settlement (Without Banking)',
                 'settlement_with_banking': 'Settlement (With Banking)',
                 'total_settlement': 'Total Settlement',
-                # 'consumption': 'Consumption'
+                # 'total_consumption_sum': 'Consumption'
             }
             
             # Filter and rename columns
