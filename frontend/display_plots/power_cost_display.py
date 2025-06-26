@@ -9,24 +9,38 @@ def display_power_cost_analysis(selected_plant):
     col_left, col_right = st.columns([3, 1])
 
     with col_left:
-        # Add radio button for banking option selection
+        # Initialize session state for banking option if not exists
+        banking_key = f"power_cost_banking_option_{selected_plant}"
+        if banking_key not in st.session_state:
+            st.session_state[banking_key] = "Without Banking"
+        
+        # Add radio button for banking option selection with unique key to prevent global reruns
         banking_option = st.radio(
             "Select Analysis Type:",
             options=["Without Banking", "With Banking"],
-            index=0,  # Default to "Without Banking"
+            index=0 if st.session_state[banking_key] == "Without Banking" else 1,
             horizontal=True,
-            help="Choose whether to include banking in the power cost analysis"
+            key=banking_key,  # Unique key per plant
+            help="Choose whether to include banking in the power cost analysis",
+            on_change=lambda: None  # Prevent callback propagation
         )
 
     with col_right:
-        # Compact grid power cost input in right corner
+        # Initialize session state for grid rate if not exists
+        grid_rate_key = f"power_cost_grid_rate_{selected_plant}"
+        if grid_rate_key not in st.session_state:
+            st.session_state[grid_rate_key] = 4.0
+        
+        # Compact grid power cost input in right corner with isolated state
         grid_rate = st.number_input(
             "Grid Cost (₹/kWh)",
             min_value=0.01,  # Changed from 0.0 to prevent division issues
             max_value=50.0,
-            value=4.0,
+            value=st.session_state[grid_rate_key],
             step=0.1,
-            help="Enter grid electricity cost per kWh"
+            key=grid_rate_key,  # Unique key per plant
+            help="Enter grid electricity cost per kWh",
+            on_change=lambda: None  # Prevent callback propagation
         )
 
     # Add error handling and validation
