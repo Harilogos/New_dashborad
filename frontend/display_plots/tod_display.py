@@ -110,7 +110,7 @@ def display_monthly_banking_settlement(selected_plant):
             with col4:
                 st.metric(
                     label="Replacement (with Banking) %",
-                    value=f"{replacement_percentage_with_banking:.0f}%",
+                    value=f"{replacement_percentage_with_banking:.2f}%",
                     help="Percentage of consumption met by generation including banking settlement"
                 )
             with col5:
@@ -123,17 +123,21 @@ def display_monthly_banking_settlement(selected_plant):
             # Customize the summary dataframe for display
             display_df = summary_df.copy()
             
-            # Select and rename columns for display
+            
+            
             columns_to_display = {
-                'month': 'Month',
-                'total_matched_settled_sum': 'Settlement (Without Banking)',
-                'settlement_with_banking': 'Settlement (With Banking)',
-                'total_settlement': 'Total Settlement',
-                # 'total_consumption_sum': 'Consumption'
-            }
+            'month': 'Month',
+            'surplus_generation_sum': 'Surplus Generation',
+            'surplus_demand_sum': 'Surplus Demand',
+            'total_matched_settled_sum': 'Settlement (Without Banking)',
+            'settlement_with_banking': 'Settlement (With Banking)',
+            'total_settlement': 'Total Settlement',
+        }
+
             
             # Filter and rename columns
             display_df = display_df[list(columns_to_display.keys())].rename(columns=columns_to_display)
+
             
             st.subheader("📊 Monthly Banking Settlement Summary")
             st.dataframe(display_df, use_container_width=True)

@@ -216,7 +216,8 @@ def fetch_combined_monthly_data(
             SUM(matched_settled_sum) AS total_matched_settled_sum,
             SUM(intra_settlement) AS total_intra_settlement,
             SUM(inter_settlement) AS total_inter_settlement,
-            SUM(surplus_demand_sum) AS surplus_demand_sum
+            SUM(surplus_demand_sum) AS surplus_demand_sum,
+            SUM(surplus_generation_sum) AS surplus_generation_sum
         FROM
             banking_settlement
         WHERE

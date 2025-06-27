@@ -22,7 +22,8 @@ from frontend.ui_components.dashboard_controls import (
 from frontend.display_plots.summary_display import (
     display_generation_vs_consumption,
     display_generation_only,
-    display_consumption_only
+    display_consumption_only,
+    display_consumption_and_generation_pie
 )
 from frontend.display_plots.tod_display import (
     display_monthly_tod_before_banking,
@@ -111,6 +112,12 @@ def main():
                 st.subheader("Consumption Analysis")
                 with st.spinner("Loading consumption data..."):
                     display_consumption_only(display_name, start_date, end_date)
+
+                st.markdown("---")
+
+                st.subheader("Generation and Consumption Pie Chart")
+                with st.spinner("Loading client data..."):
+                    display_consumption_and_generation_pie(display_name, start_date, end_date)
             
             with tab2:
                 
@@ -121,7 +128,7 @@ def main():
                     st.stop()
                 
                 # Automatically display all ToD plots
-                st.subheader("Monthly ToD Before Banking")
+                st.subheader("Monthly ToD Generation Vs Consumption")
                 with st.spinner("Loading monthly ToD data..."):
                     display_monthly_tod_before_banking(display_name)
                 

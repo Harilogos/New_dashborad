@@ -61,3 +61,43 @@ def fetch_generation_consumption_data(
         df['date'] = pd.to_datetime(df['date'])
 
     return df
+
+
+
+def fetch_unitwise_consumption_and_generation(
+    conn,
+    client_name: str,
+    start_date: str,
+    end_date: str
+) -> pd.DataFrame:
+    """
+    Fetch aggregated consumption and allocated generation grouped by cons_unit
+    for the specified client and date range.
+    
+    Returns:
+        pd.DataFrame with columns:
+        - cons_unit
+        - consumption
+        - allocated_generation
+    """
+    if conn is None:
+        return pd.DataFrame()
+
+    query = """
+        SELECT cons_unit,
+               SUM(consumption) AS consumption,
+               SUM(allocated_generation) AS allocated_generation
+        FROM settlement_data
+        WHERE client_name = %s
+          AND date BETWEEN %s AND %s
+        GROUP BY cons_unit
+        ORDER BY cons_unit;
+    """
+    
+    df = safe_read_sql(query, conn, (client_name, start_date, end_date))
+
+    # Safety: ensure numeric columns are of numeric type
+    df['consumption'] = pd.to_numeric(df['consumption'], errors='coerce').fillna(0)
+    df['allocated_generation'] = pd.to_numeric(df['allocated_generation'], errors='coerce').fillna(0)
+
+    return df

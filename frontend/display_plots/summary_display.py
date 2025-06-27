@@ -1,8 +1,8 @@
 
 import streamlit as st
 from db.db_setup import CONN
-from db.fetch_summary_data import fetch_generation_consumption_data
-from visualizations.summary_tab_visual import plot_generation_vs_consumption, create_generation_only_plot, create_consumption_plot
+from db.fetch_summary_data import fetch_generation_consumption_data, fetch_unitwise_consumption_and_generation
+from visualizations.summary_tab_visual import plot_generation_vs_consumption, create_generation_only_plot, create_consumption_plot, plot_consumption_and_generation_pie
 
 
 def display_generation_vs_consumption(selected_plant, start_date, end_date=None):
@@ -20,7 +20,7 @@ def display_generation_vs_consumption(selected_plant, start_date, end_date=None)
     else:
         end_date_str = str(end_date)
    
-
+    
     try:
         df = fetch_generation_consumption_data(CONN, selected_plant, start_date_str, end_date_str)
         
@@ -92,7 +92,7 @@ def display_generation_vs_consumption(selected_plant, start_date, end_date=None)
             with col4:
                 st.metric(
                     label="Replacement (without Banking) %",
-                    value=f"{replacement_percentage:.0f}%",
+                    value=f"{replacement_percentage:.2f}%",
                     help="Percentage of consumption (without Banking) met by generation"
                 )
             with col5:
@@ -182,3 +182,52 @@ def display_consumption_only(selected_plant, start_date, end_date=None):
     except Exception as e:
         st.error(f"❌ Error loading consumption data: {str(e)}")
         st.exception(e)
+
+
+
+
+def display_consumption_and_generation_pie(selected_plant, start_date, end_date=None):
+    """Display pie chart for consumption and generation breakdown by units."""
+    # Convert dates to string format if they're date objects
+    if hasattr(start_date, 'strftime'):
+        start_date_str = start_date.strftime('%Y-%m-%d')
+    else:
+        start_date_str = str(start_date)
+    
+    if end_date is None:
+        end_date_str = start_date_str
+    elif hasattr(end_date, 'strftime'):
+        end_date_str = end_date.strftime('%Y-%m-%d')
+    else:
+        end_date_str = str(end_date)
+
+
+    print("##############")
+    print(start_date_str)
+    print(end_date_str)
+    print(selected_plant)
+
+    try:
+        df = fetch_unitwise_consumption_and_generation(
+            CONN,
+            selected_plant,
+            start_date_str,
+            end_date_str
+        )
+
+        print("##############")
+        print(df)
+        
+        if df is not None and not df.empty:
+            fig = plot_consumption_and_generation_pie(df, selected_plant)
+            if fig:
+                st.pyplot(fig)
+            else:
+                st.warning("⚠️ No pie chart generated for the selected data.")
+        else:
+            st.warning("⚠️ No unitwise data available for the selected plant and date range.")
+    except Exception as e:
+        st.error(f"❌ Error loading unitwise consumption and generation data: {str(e)}")
+        st.exception(e)
+
+
